@@ -59,3 +59,44 @@ it('offers import in the tree menu and shows progress only while importing', asy
   runtime.dispose();
   client.clear();
 });
+
+it('imports regular files from a mixed file and folder drop', async () => {
+  const runtime = createWorkspaceRuntime(workspaceRuntimeOptions());
+  const file = new File(['draft'], 'draft.md');
+  const upload = vi.fn<UploadPort['upload']>(async () => ({ paths: ['draft.md'], refused: [] }));
+  const { client } = withQueryClient(
+    <FileImport api={{ upload }} runtime={runtime}>
+      {() => <div>Files</div>}
+    </FileImport>,
+  );
+
+  fireEvent.drop(screen.getByRole('group', { name: 'Import project files' }), {
+    dataTransfer: {
+      types: ['Files'],
+      items: [
+        {
+          getAsFile: () => null,
+          webkitGetAsEntry: () => ({ isDirectory: true }),
+        },
+        {
+          getAsFile: () => file,
+          webkitGetAsEntry: () => ({ isDirectory: false }),
+        },
+      ],
+      files: [file],
+    },
+  });
+
+  expect(upload).toHaveBeenCalledWith(
+    runtime.scope.folder.path,
+    [{ blob: file, name: 'draft.md' }],
+    runtime.signal,
+  );
+  expect(
+    screen.getByText('Choose files to import. To use a whole folder, open it as a project.'),
+  ).not.toBeNull();
+  expect(await screen.findByText('1 file imported.')).not.toBeNull();
+
+  runtime.dispose();
+  client.clear();
+});
