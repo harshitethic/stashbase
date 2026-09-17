@@ -32,11 +32,23 @@ export function FileImport({
         if (!event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
         event.stopPropagation();
-        const hasFolder = Array.from(event.dataTransfer.items).some(
-          (item) => item.webkitGetAsEntry()?.isDirectory,
-        );
+
+        const items = Array.from(event.dataTransfer.items);
+        let hasFolder = false;
+        const droppedFiles: File[] = [];
+        for (const item of items) {
+          const entry = item.webkitGetAsEntry?.();
+          if (entry?.isDirectory) {
+            hasFolder = true;
+            continue;
+          }
+          const file = item.getAsFile();
+          if (file) droppedFiles.push(file);
+        }
+
         setFolderDropped(hasFolder);
-        if (!hasFolder) void state.importFiles(Array.from(event.dataTransfer.files));
+        const files = items.length > 0 ? droppedFiles : Array.from(event.dataTransfer.files);
+        if (files.length > 0) void state.importFiles(files);
       }}
     >
       <div className="px-2">
